@@ -1,0 +1,112 @@
+<!--
+
+    Copyright (C) 2011 Everit Kft. (http://www.everit.org)
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<html>
+<body data-eht-fragment="'body'" data-eht-render="'content'">
+
+  <style type="text/css">
+#content h2 {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: left;
+  padding-bottom: 0.5em;
+}
+
+#content h3 {
+  font-size: 16px;
+  font-weight: bold;
+  text-align: left;
+  padding-bottom: 1em;
+}
+
+table.nicetable {
+  margin-bottom: 2em;
+}
+
+tr.unsatisfied-recipe {
+  color: red;
+}
+
+tr.unsatisfied-container, tr.unsatisfied-container a:link, tr.unsatisfied-container a:visited {
+  color: orange;
+}
+
+tr.failed-container, tr.failed-container a:link, tr.failed-container a:visited, tr.unsatisfied-container.failed-container,
+  tr.unsatisfied-container.failed-container a:link, tr.unsatisfied-container.failed-container a:visited
+  {
+  color: red;
+}
+</style>
+
+  <table class="nicetable ui-widget">
+    <thead>
+      <tr>
+        <th>Bundle</th>
+        <th>Event type</th>
+        <th>Missing dependencies</th>
+        <th>Unsatisfied recipe count</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-eht-foreach="{['blueprintContainer', 'bc_i'] : blueprintContainers}"
+        data-eht-attr-class="((bc_i % 2 == 0) ? 'odd' : 'even') + ' ui-state-default' + ((blueprintContainer.unsatisfiedReferenceNum || blueprintContainer.eventTypeName != 'Created') ? ' unsatisfied-container' : '') + ((blueprintContainer.eventTypeName == 'Failed' ? ' failed-container' : ''))"
+        data-eht-code="bundle = blueprintContainer.bundle">
+
+        <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
+          data-eht-text="bundle.symbolicName + ':' + bundle.version">SymbolicName:version</a></td>
+        <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
+          data-eht-text="blueprintContainer.eventTypeName">created</a></td>
+        <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
+          data-eht-text="blueprintContainer.missingDependenciesString">missing dependencies</a></td>
+        <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
+          data-eht-text="(blueprintContainer.unsatisfiedReferenceNum > 0) ? blueprintContainer.unsatisfiedReferenceNum : ''">0</a></td>
+        <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
+          data-eht-text="blueprintContainer.timestampDate">2016-01-01</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div data-eht-foreach="{['blueprintContainer', 'bc_i'] : blueprintContainers}"
+    data-eht-code="bundle = blueprintContainer.bundle">
+    <h2 data-eht-attr-id="'bundle_' + bundle.bundleId"
+      data-eht-text="bundle.symbolicName + ':' + bundle.version">symname:version</h2>
+
+    <h3>Recipes</h3>
+    <table class="nicetable ui-widget">
+      <thead>
+        <tr>
+          <th class="ui-widget-header">Name</th>
+          <th class="ui-widget-header">Satisfied</th>
+          <th class="ui-widget-header">OSGi filter</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-eht-foreach="{['recipe', 'rcp_i'] : blueprintContainer.recipes}"
+          data-eht-render="!recipe.name.startsWith('#recipe')"
+          data-eht-attr-class="((recipe.satisfied != null) && !recipe.satisfied) ? 'unsatisfied-recipe' : null">
+          <td data-eht-text="recipe.name"></td>
+          <td data-eht-text="(recipe.satisfied != null) ? recipe.satisfied : ''"></td>
+          <td data-eht-text="(recipe.osgiFilter != null) ? recipe.osgiFilter : ''"></td>
+        </tr>
+      </tbody>
+    </table>
+    <h3 data-eht-render="blueprintContainer.cause != null">Exception</h3>
+    <pre data-eht-text="blueprintContainer.causeStackTrace" style="color: red; padding-bottom: 2em;"></pre>
+  </div>
+</body>
+</html>
