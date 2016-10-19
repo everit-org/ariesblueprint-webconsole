@@ -18,6 +18,7 @@ package org.everit.osgi.ariesblueprint.webconsole;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
@@ -36,19 +37,11 @@ import org.osgi.service.blueprint.container.BlueprintEvent;
  */
 public class BlueprintContainerUIData implements Comparable<BlueprintContainerUIData> {
 
-  private Bundle bundle;
+  private final Set<RecipeUIData> recipes;
 
-  private Throwable cause;
+  private final int unsatisfiedReferenceNum;
 
-  private int eventType;
-
-  private String[] missingDependencies;
-
-  private Set<RecipeUIData> recipes;
-
-  private long timestamp;
-
-  private int unsatisfiedReferenceNum;
+  private final BlueprintEvent blueprintEvent;
 
   /**
    * Constructor.
@@ -60,14 +53,21 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
    */
   public BlueprintContainerUIData(final BlueprintEvent blueprintEvent,
       final BlueprintContainer blueprintContainer) {
+
+    this.blueprintEvent = blueprintEvent;
+
+    if (blueprintContainer == null) {
+      this.unsatisfiedReferenceNum = 0;
+      this.recipes = Collections.emptySet();
+      return;
+    }
+
     if (!(blueprintContainer instanceof BlueprintContainerImpl)) {
       throw new IllegalArgumentException(
           "Blueprint container is not instance of repository: " + blueprintContainer);
     }
 
     BlueprintContainerImpl blueprintContainerImpl = (BlueprintContainerImpl) blueprintContainer;
-
-    bundle = blueprintContainerImpl.getBundleContext().getBundle();
 
     Repository repository = blueprintContainerImpl.getRepository();
     Set<Recipe> recipes = repository.getAllRecipes();
@@ -78,36 +78,28 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
     }
     this.recipes = recipeUIDataSet;
 
-    eventType = blueprintEvent.getType();
-    cause = blueprintEvent.getCause();
-    timestamp = blueprintEvent.getTimestamp();
-    missingDependencies = blueprintEvent.getDependencies();
-
     unsatisfiedReferenceNum = resolveUnsatisfiedReferenceNum();
+  }
+
+  public BlueprintEvent getBlueprintEvent() {
+    return blueprintEvent;
   }
 
   @Override
   public int compareTo(final BlueprintContainerUIData o) {
-    int result = Long.compare(timestamp, o.timestamp);
+    int result = Long.compare(blueprintEvent.getTimestamp(), o.getBlueprintEvent().getTimestamp());
     if (result != 0) {
       return result;
     }
 
-    result = bundle.getSymbolicName().compareTo(o.bundle.getSymbolicName());
+    Bundle bundle = blueprintEvent.getBundle();
+    result = bundle.getSymbolicName().compareTo(o.blueprintEvent.getBundle().getSymbolicName());
     if (result != 0) {
       return result;
     }
 
-    result = bundle.getVersion().compareTo(o.bundle.getVersion());
+    result = bundle.getVersion().compareTo(o.blueprintEvent.getBundle().getVersion());
     return result;
-  }
-
-  public Bundle getBundle() {
-    return bundle;
-  }
-
-  public Throwable getCause() {
-    return cause;
   }
 
   @Override
@@ -115,7 +107,9 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
   public int hashCode() {
     final int prime = 31;
     int result = 1;
+    Bundle bundle = blueprintEvent.getBundle();
     result = prime * result + ((bundle == null) ? 0 : bundle.hashCode());
+    long timestamp = blueprintEvent.getTimestamp();
     result = prime * result + (int) (timestamp ^ (timestamp >>> 32));
     return result;
   }
@@ -130,12 +124,13 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
     if (getClass() != obj.getClass())
       return false;
     BlueprintContainerUIData other = (BlueprintContainerUIData) obj;
+    Bundle bundle = blueprintEvent.getBundle();
     if (bundle == null) {
-      if (other.bundle != null)
+      if (other.blueprintEvent.getBundle() != null)
         return false;
-    } else if (!bundle.equals(other.bundle))
+    } else if (!bundle.equals(other.blueprintEvent.getBundle()))
       return false;
-    if (timestamp != other.timestamp)
+    if (blueprintEvent.getTimestamp() != other.blueprintEvent.getTimestamp())
       return false;
     return true;
   }
@@ -146,6 +141,7 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
    * @return The stacktrace of the error or <code>null</code> if not available.
    */
   public String getCauseStackTrace() {
+    Throwable cause = blueprintEvent.getCause();
     if (cause == null) {
       return "";
     }
@@ -161,6 +157,7 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
    * @return The name of the blueprint event.
    */
   public String getEventTypeName() {
+    int eventType = blueprintEvent.getType();
     switch (eventType) {
       case BlueprintEvent.CREATED:
         return "Created";
@@ -182,6 +179,7 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
   }
 
   public String getMissingDependenciesString() {
+    String[] missingDependencies = blueprintEvent.getDependencies();
     return (missingDependencies != null) ? Arrays.toString(missingDependencies) : "";
   }
 
@@ -190,7 +188,7 @@ public class BlueprintContainerUIData implements Comparable<BlueprintContainerUI
   }
 
   public Date getTimestampDate() {
-    return new Date(timestamp);
+    return new Date(blueprintEvent.getTimestamp());
   }
 
   public int getUnsatisfiedReferenceNum() {

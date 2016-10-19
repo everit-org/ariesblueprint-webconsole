@@ -28,6 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -55,6 +58,8 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
  */
 public class AriesBlueprintWebconsolePlugin implements Servlet {
 
+  private ReadWriteLock rwLock = new ReentrantReadWriteLock();
+
   /**
    * Tracks Aries {@link BlueprintContainer} OSGi services and adds them to the plugin internal map.
    */
@@ -62,10 +67,25 @@ public class AriesBlueprintWebconsolePlugin implements Servlet {
       implements ServiceTrackerCustomizer<BlueprintContainer, BlueprintContainer> {
 
     @Override
-    public BlueprintContainer addingService(final ServiceReference<BlueprintContainer> reference) {
-      BlueprintContainer blueprintContainer = bundleContext.getService(reference);
-      blueprintContainerByBundleIdMap.put(reference.getBundle().getBundleId(), blueprintContainer);
-      return blueprintContainer;
+    public BlueprintContainer addingService(
+        final ServiceReference<BlueprintContainer> reference) {
+      Lock writeLock = rwLock.writeLock();
+      writeLock.lock();
+      try {
+        BlueprintContainer blueprintContainer = bundleContext.getService(reference);
+        long bundleId = reference.getBundle().getBundleId();
+        blueprintContainerByBundleIdMap.put(bundleId, blueprintContainer);
+
+        BlueprintContainerUIData uiData = blueprintContainerUIByBundleIdMap.get(bundleId);
+        if (uiData != null) {
+          blueprintContainerUIByBundleIdMap.put(bundleId,
+              new BlueprintContainerUIData(uiData.getBlueprintEvent(), blueprintContainer));
+        }
+
+        return blueprintContainer;
+      } finally {
+        writeLock.unlock();
+      }
     }
 
     @Override
@@ -76,8 +96,14 @@ public class AriesBlueprintWebconsolePlugin implements Servlet {
     @Override
     public void removedService(final ServiceReference<BlueprintContainer> reference,
         final BlueprintContainer service) {
-      blueprintContainerByBundleIdMap.remove(reference.getBundle().getBundleId());
-      bundleContext.ungetService(reference);
+      Lock writeLock = rwLock.writeLock();
+      writeLock.lock();
+      try {
+        blueprintContainerByBundleIdMap.remove(reference.getBundle().getBundleId());
+        bundleContext.ungetService(reference);
+      } finally {
+        writeLock.unlock();
+      }
     }
 
   }
@@ -90,14 +116,22 @@ public class AriesBlueprintWebconsolePlugin implements Servlet {
     @Override
     public void blueprintEvent(final BlueprintEvent event) {
       long bundleId = event.getBundle().getBundleId();
-      if (event.getType() == BlueprintEvent.DESTROYED) {
-        blueprintContainerUIByBundleIdMap.remove(bundleId);
-        blueprintContainerByBundleIdMap.remove(bundleId);
-        return;
-      }
+      Lock writeLock = rwLock.writeLock();
+      writeLock.lock();
+      try {
+        if (event.getType() == BlueprintEvent.DESTROYED) {
 
-      blueprintContainerUIByBundleIdMap.put(bundleId, new BlueprintContainerUIData(event,
-          blueprintContainerByBundleIdMap.get(bundleId)));
+          blueprintContainerUIByBundleIdMap.remove(bundleId);
+          blueprintContainerByBundleIdMap.remove(bundleId);
+
+          return;
+        }
+
+        blueprintContainerUIByBundleIdMap.put(bundleId, new BlueprintContainerUIData(event,
+            blueprintContainerByBundleIdMap.get(bundleId)));
+      } finally {
+        writeLock.unlock();
+      }
     }
   }
 
@@ -197,11 +231,17 @@ public class AriesBlueprintWebconsolePlugin implements Servlet {
       throws ServletException, IOException {
     PrintWriter writer = res.getWriter();
 
-    Set<BlueprintContainerUIData> uiContainers =
-        new TreeSet<>(blueprintContainerUIByBundleIdMap.values());
+    Lock readLock = rwLock.readLock();
+    readLock.lock();
+    try {
+      Set<BlueprintContainerUIData> uiContainers =
+          new TreeSet<>(blueprintContainerUIByBundleIdMap.values());
 
-    Map<String, Object> vars = new HashMap<>();
-    vars.put("blueprintContainers", uiContainers);
-    PAGE_TEMPLATE.render(writer, vars, "body");
+      Map<String, Object> vars = new HashMap<>();
+      vars.put("blueprintContainers", uiContainers);
+      PAGE_TEMPLATE.render(writer, vars, "body");
+    } finally {
+      readLock.unlock();
+    }
   }
 }

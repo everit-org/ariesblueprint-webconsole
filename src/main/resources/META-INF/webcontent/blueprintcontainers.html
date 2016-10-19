@@ -65,7 +65,7 @@ tr.failed-container, tr.failed-container a:link, tr.failed-container a:visited, 
     <tbody>
       <tr data-eht-foreach="{['blueprintContainer', 'bc_i'] : blueprintContainers}"
         data-eht-attr-class="((bc_i % 2 == 0) ? 'odd' : 'even') + ' ui-state-default' + ((blueprintContainer.unsatisfiedReferenceNum || blueprintContainer.eventTypeName != 'Created') ? ' unsatisfied-container' : '') + ((blueprintContainer.eventTypeName == 'Failed' ? ' failed-container' : ''))"
-        data-eht-code="bundle = blueprintContainer.bundle">
+        data-eht-code="bundle = blueprintContainer.blueprintEvent.bundle">
 
         <td><a data-eht-attr-href="'#bundle_' + bundle.bundleId"
           data-eht-text="bundle.symbolicName + ':' + bundle.version">SymbolicName:version</a></td>
@@ -82,7 +82,7 @@ tr.failed-container, tr.failed-container a:link, tr.failed-container a:visited, 
   </table>
 
   <div data-eht-foreach="{['blueprintContainer', 'bc_i'] : blueprintContainers}"
-    data-eht-code="bundle = blueprintContainer.bundle">
+    data-eht-code="bundle = blueprintContainer.blueprintEvent.bundle">
     <h2 data-eht-attr-id="'bundle_' + bundle.bundleId"
       data-eht-text="bundle.symbolicName + ':' + bundle.version">symname:version</h2>
 
@@ -105,7 +105,7 @@ tr.failed-container, tr.failed-container a:link, tr.failed-container a:visited, 
         </tr>
       </tbody>
     </table>
-    <h3 data-eht-render="blueprintContainer.cause != null">Exception</h3>
+    <h3 data-eht-render="blueprintContainer.blueprintEvent.cause != null">Exception</h3>
     <pre data-eht-text="blueprintContainer.causeStackTrace" style="color: red; padding-bottom: 2em;"></pre>
   </div>
 </body>
